@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace CommandLine
 {
@@ -8,6 +10,76 @@ namespace CommandLine
     /// </summary>
     public class CommandLineParser
     {
+        /// <summary>
+        /// Gets or sets the short form prefix string used on arguments.
+        /// </summary>
+        public string ShortFormPrefix { get; set; } = "-";
+
+        /// <summary>
+        /// Gets or sets the long form prefix string used on arguments.
+        /// </summary>
+        public string LongFormPrefix { get; set; } = "--";
+
+        /// <summary>
+        /// Splits the specified command-line string.
+        /// </summary>
+        /// <param name="commandLine">The command line string.</param>
+        public static string[] Split(string commandLine)
+        {
+            bool doubleQuotes = false;
+            bool singleQuotes = false;
+            bool escaping = false;
+
+            List<string> parts = new List<string>();
+            StringBuilder mounting = new StringBuilder();
+
+            using (StringReader sr = new StringReader(commandLine))
+            {
+                int c;
+                while ((c = sr.Read()) >= 0)
+                {
+                    char current = (char)c;
+
+                    if (escaping)
+                    {
+                        if (current != '\n' && current != '\r')
+                            mounting.Append(current);
+
+                        escaping = false;
+                        continue;
+                    }
+
+                    if (char.IsWhiteSpace(current) && !doubleQuotes && !singleQuotes)
+                    {
+                        if (mounting.Length > 0)
+                            parts.Add(mounting.ToString());
+                        mounting.Clear();
+                    }
+                    else if (current == '\'' && !doubleQuotes)
+                    {
+                        singleQuotes = !singleQuotes;
+                    }
+                    else if (current == '"' && !singleQuotes)
+                    {
+                        doubleQuotes = !doubleQuotes;
+                    }
+                    else if (current == '^' || current == '\\')
+                    {
+                        escaping = true;
+                    }
+                    else
+                    {
+                        mounting.Append(current);
+                    }
+                }
+
+                if (mounting.Length > 0)
+                    parts.Add(mounting.ToString());
+            }
+
+            return parts.ToArray();
+        }
+
         /// <summary>
         /// Gets the input arguments used to construct this interpreter.
         /// </summary>
@@ -52,7 +124,7 @@ namespace CommandLine
                 string item = Arguments[i];
                 if (insertingNext)
                 {
-                    if (item.StartsWith("-"))
+                    if (item.StartsWith(ShortFormPrefix))
                     {
                         insertingNext = false;
                     }
@@ -119,9 +191,9 @@ namespace CommandLine
                 string? before = i == 0 ? null : Arguments[i - 1];
                 string item = Arguments[i];
 
-                bool beforeIsSwitch = before != null && before.StartsWith('-');
+                bool beforeIsSwitch = before != null && before.StartsWith(ShortFormPrefix);
 
-                if (!beforeIsSwitch && !item.StartsWith('-'))
+                if (!beforeIsSwitch && !item.StartsWith(ShortFormPrefix))
                 {
                     yield return item;
                 }
@@ -130,9 +202,8 @@ namespace CommandLine
 
         bool IsVerbMatch(string verb, string longForm, char? shortForm)
         {
-            if (!verb.StartsWith('-')) return false;
-            if (verb.StartsWith("--" + longForm, Comparer)) return true;
-            if (shortForm is char c && verb.StartsWith("-" + shortForm, Comparer)) return true;
+            if (verb.StartsWith(LongFormPrefix + longForm, Comparer)) return true;
+            if (shortForm is char s && verb.StartsWith(ShortFormPrefix + s, Comparer)) return true;
             return false;
         }
 
