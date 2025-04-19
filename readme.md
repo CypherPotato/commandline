@@ -58,7 +58,7 @@ static void Main(string[] args)
     
     string? d = parser.GetValue("directive", 'd'); // "command"
     string? f = parser.GetValue("foo", 'f'); // "hello"
-    string? x = parser.GetValue("empty"); // null
+    string? x = parser.GetValue("bar"); // null
 }
 ```
 
